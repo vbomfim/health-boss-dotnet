@@ -215,6 +215,7 @@ See [METRICS-CARDINALITY.md](docs/METRICS-CARDINALITY.md) for capacity planning 
 |----------|----------|
 | [samples/HealthBoss.Sample.WebApi](samples/HealthBoss.Sample.WebApi) | Runnable reference implementation |
 | [STATE-MACHINE.md](docs/STATE-MACHINE.md) | How health assessment works |
+| [GRPC.md](docs/GRPC.md) | gRPC call tracking + quorum evaluation |
 | [SPECIFICATION.md](docs/SPECIFICATION.md) | Full v1.0 specification |
 | [METRICS-CARDINALITY.md](docs/METRICS-CARDINALITY.md) | Ops — cardinality planning |
 | [COMPONENT-DESIGN.md](docs/architecture/COMPONENT-DESIGN.md) | Contributors — internal architecture |
