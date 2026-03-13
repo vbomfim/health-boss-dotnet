@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>HealthBoss.AspNetCore</RootNamespace>
+    <AssemblyName>HealthBoss.AspNetCore</AssemblyName>
+    <Description>HealthBoss ASP.NET Core — K8s health probe endpoints</Description>
+    <NoWarn />
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HealthBoss.Core\HealthBoss.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="HealthBoss.AspNetCore.Tests" />
+  </ItemGroup>
+
+</Project>

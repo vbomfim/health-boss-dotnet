@@ -1,0 +1,17 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/HealthBoss.Core/HealthBoss.Core.csproj" />
+    <Project Path="src/HealthBoss.AspNetCore/HealthBoss.AspNetCore.csproj" />
+    <Project Path="src/HealthBoss.Polly/HealthBoss.Polly.csproj" />
+    <Project Path="src/HealthBoss.Grpc/HealthBoss.Grpc.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/HealthBoss.Core.Tests/HealthBoss.Core.Tests.csproj" />
+    <Project Path="tests/HealthBoss.AspNetCore.Tests/HealthBoss.AspNetCore.Tests.csproj" />
+    <Project Path="tests/HealthBoss.Polly.Tests/HealthBoss.Polly.Tests.csproj" />
+    <Project Path="tests/HealthBoss.Grpc.Tests/HealthBoss.Grpc.Tests.csproj" />
+  </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/HealthBoss.Sample.WebApi/HealthBoss.Sample.WebApi.csproj" />
+  </Folder>
+</Solution>

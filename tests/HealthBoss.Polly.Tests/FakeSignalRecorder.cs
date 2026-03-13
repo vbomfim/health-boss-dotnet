@@ -1,0 +1,38 @@
+// <copyright file="FakeSignalRecorder.cs" company="HealthBoss">
+// Copyright (c) HealthBoss. All rights reserved.
+// </copyright>
+
+using HealthBoss.Core;
+using HealthBoss.Core.Contracts;
+
+namespace HealthBoss.Polly.Tests;
+
+/// <summary>
+/// Test double that captures recorded signals for assertion.
+/// Thread-safe: all access is synchronized with a lock since
+/// <see cref="Record"/> is called from async Polly callbacks.
+/// </summary>
+internal sealed class FakeSignalRecorder : ISignalRecorder
+{
+    private readonly List<HealthSignal> _signals = [];
+    private readonly object _lock = new();
+
+    public IReadOnlyList<HealthSignal> Signals
+    {
+        get
+        {
+            lock (_lock)
+            {
+                return [.. _signals];
+            }
+        }
+    }
+
+    public void Record(HealthSignal signal)
+    {
+        lock (_lock)
+        {
+            _signals.Add(signal);
+        }
+    }
+}

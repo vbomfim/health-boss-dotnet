@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>HealthBoss.Polly</RootNamespace>
+    <AssemblyName>HealthBoss.Polly</AssemblyName>
+    <Description>HealthBoss Polly — Circuit breaker bridge for Polly v8 resilience pipelines</Description>
+    <!-- Override NoWarn to enforce XML docs in this package -->
+    <NoWarn />
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Polly.Core" Version="8.5.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HealthBoss.Core\HealthBoss.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="HealthBoss.Polly.Tests" />
+  </ItemGroup>
+
+</Project>

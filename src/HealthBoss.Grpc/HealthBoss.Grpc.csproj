@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>HealthBoss.Grpc</RootNamespace>
+    <AssemblyName>HealthBoss.Grpc</AssemblyName>
+    <Description>HealthBoss Grpc — gRPC subchannel health adapter and client interceptor</Description>
+    <!-- Override NoWarn to enforce XML docs in this package -->
+    <NoWarn />
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Grpc.Net.Client" Version="2.67.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HealthBoss.Core\HealthBoss.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="HealthBoss.Grpc.Tests" />
+  </ItemGroup>
+
+</Project>
