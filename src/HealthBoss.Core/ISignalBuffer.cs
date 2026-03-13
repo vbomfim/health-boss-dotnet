@@ -8,10 +8,16 @@ namespace HealthBoss.Core;
 
 /// <summary>
 /// Thread-safe ring buffer for health signal ingestion and retrieval.
-/// Extends <see cref="ISignalRecorder"/> so callers that only record signals
-/// can depend on the narrower interface (Interface Segregation Principle).
+/// Extends <see cref="ISignalWriter"/> for write access and adds read
+/// (<see cref="GetSignals"/>), maintenance (<see cref="Trim"/>), and
+/// count operations needed by the core monitoring pipeline.
 /// </summary>
-public interface ISignalBuffer : ISignalRecorder
+/// <remarks>
+/// Consumers that only need to write signals should depend on
+/// <see cref="ISignalWriter"/> instead. This keeps gRPC interceptors,
+/// Polly hooks, and recovery probers decoupled from buffer internals.
+/// </remarks>
+public interface ISignalBuffer : ISignalWriter
 {
     /// <summary>
     /// Returns a snapshot of signals within the specified time window.

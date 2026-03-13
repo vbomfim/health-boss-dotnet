@@ -11,16 +11,8 @@ namespace HealthBoss.Core;
 /// Produces aggregate <see cref="HealthReport"/> and <see cref="ReadinessReport"/>
 /// for probe endpoints and provides a read-only health state for shutdown decisions.
 /// </summary>
-public interface IHealthOrchestrator : IHealthStateReader, IHealthReportProvider
+public interface IHealthOrchestrator : IHealthStateReader, IHealthReportProvider, ISignalIngress
 {
-    /// <summary>
-    /// Records a signal for a specific dependency.
-    /// If the dependency is not registered, the signal is dropped with a warning.
-    /// </summary>
-    /// <param name="id">The dependency identifier.</param>
-    /// <param name="signal">The health signal to record.</param>
-    void RecordSignal(DependencyId id, HealthSignal signal);
-
     /// <summary>
     /// Gets a specific dependency's monitor, or <c>null</c> if the dependency is not registered.
     /// </summary>

@@ -469,7 +469,7 @@ public sealed class Sprint3ReviewFixTests
     // ── Test doubles ──
 
     /// <summary>Captures recorded signals for test assertions.</summary>
-    private sealed class RecordingSignalRecorder : ISignalRecorder
+    private sealed class RecordingSignalRecorder : ISignalWriter
     {
         private readonly List<HealthSignal> _signals = [];
         private readonly object _lock = new();

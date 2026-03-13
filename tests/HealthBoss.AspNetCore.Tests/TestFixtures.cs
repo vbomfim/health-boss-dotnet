@@ -1,3 +1,4 @@
+using HealthBoss.Core;
 using HealthBoss.Core.Contracts;
 
 namespace HealthBoss.AspNetCore.Tests;
@@ -93,6 +94,17 @@ internal static class TestFixtures
                 null),
             BaseTime,
             state == HealthState.Healthy ? 0 : failureCount);
+
+    // ── Fake Startup Tracker ─────────────────────────────────
+
+    internal sealed class FakeStartupTracker : HealthBoss.Core.IStartupTracker
+    {
+        private volatile StartupStatus _status = StartupStatus.Starting;
+
+        public StartupStatus Status => _status;
+        public void MarkReady() => _status = StartupStatus.Ready;
+        public void MarkFailed(string? reason = null) => _status = StartupStatus.Failed;
+    }
 
     // ── Fake Provider ─────────────────────────────────────────
 

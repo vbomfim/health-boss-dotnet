@@ -11,11 +11,14 @@ dotnet run
 ## Try it
 
 ```bash
-# Place an order (signals flow via inbound tracking)
+# Place an order
 curl -X POST http://localhost:5000/orders
 
-# Fulfill an order (manual signal recording, ~10% failure rate)
+# Fulfill an order (manual signal recording via ISignalIngress, ~10% failure rate)
 curl -X POST http://localhost:5000/orders/1/fulfill
+
+# Inject signals to simulate failures and watch health degrade
+curl -X POST http://localhost:5000/simulate/orders-db/failure/20
 
 # Read health programmatically
 curl http://localhost:5000/status
@@ -31,10 +34,9 @@ curl http://localhost:5000/healthz/startup
 | Feature | Where |
 |---------|-------|
 | Component registration with thresholds | `AddHealthBoss()` in Program.cs |
-| Outbound HTTP tracking | `AddHealthBossOutboundTracking()` on HttpClient |
-| Inbound request tracking | `UseHealthBossInboundTracking()` with path mapping |
-| Manual signal recording | `POST /orders/{id}/fulfill` using `ISignalRecorder` |
-| Programmatic health reading | `GET /status` using `IHealthReportProvider` |
+| Manual signal recording | `POST /orders/{id}/fulfill` using `ISignalIngress` |
+| Signal injection for testing | `POST /simulate/{component}/{outcome}/{count}` using `ISignalIngress` |
+| Programmatic health reading | `GET /status` using `IHealthOrchestrator` |
 | Kubernetes probes | `MapHealthBossEndpoints()` |
 | OpenTelemetry metrics | Console exporter wired to `HealthBoss` meter |
 | Startup lifecycle | `IStartupTracker.MarkReady()` |

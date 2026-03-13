@@ -595,11 +595,19 @@ public sealed class MetricsIntegrationTests : IDisposable
             Task.FromResult(_recovered);
     }
 
-    private sealed class FakeSignalRecorder : ISignalRecorder
+    private sealed class FakeSignalRecorder : ISignalBuffer
     {
         public List<HealthSignal> Recorded { get; } = [];
 
         public void Record(HealthSignal signal) => Recorded.Add(signal);
+
+        public IReadOnlyList<HealthSignal> GetSignals(TimeSpan window) =>
+            Recorded.Where(s => s.Timestamp >= DateTimeOffset.UtcNow - window).ToList();
+
+        public void Trim(DateTimeOffset cutoff) =>
+            Recorded.RemoveAll(s => s.Timestamp < cutoff);
+
+        public int Count => Recorded.Count;
     }
 
     // ─── Measurement records ─────────────────────────────────────────

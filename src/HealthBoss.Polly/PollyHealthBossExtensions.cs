@@ -21,7 +21,7 @@ public static class PollyHealthBossExtensions
     /// Existing callbacks on the options are preserved and invoked first.
     /// </summary>
     /// <param name="options">The circuit breaker strategy options to augment.</param>
-    /// <param name="recorder">The signal recorder to write health signals to.</param>
+    /// <param name="recorder">The signal writer to write health signals to.</param>
     /// <param name="dependencyId">Identifies which dependency the circuit breaker protects.</param>
     /// <param name="clock">Clock used to timestamp recorded signals.</param>
     /// <returns>The same <paramref name="options"/> instance for fluent chaining.</returns>
@@ -30,7 +30,7 @@ public static class PollyHealthBossExtensions
     /// </exception>
     public static CircuitBreakerStrategyOptions WithHealthBossTracking(
         this CircuitBreakerStrategyOptions options,
-        ISignalRecorder recorder,
+        ISignalWriter recorder,
         DependencyId dependencyId,
         ISystemClock clock)
     {

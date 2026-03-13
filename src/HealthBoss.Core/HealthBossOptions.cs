@@ -3,6 +3,7 @@
 // </copyright>
 
 using HealthBoss.Core.Contracts;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace HealthBoss.Core;
 
@@ -54,6 +55,38 @@ public sealed class HealthBossOptions
     /// from all dependency snapshots. When <c>null</c>, the default all-must-be-ready strategy is used.
     /// </summary>
     public Func<IReadOnlyList<DependencySnapshot>, ReadinessStatus>? AggregateReadinessResolver { get; set; }
+
+    /// <summary>
+    /// Gets the custom event sink factories registered via <see cref="AddEventSink{T}"/>
+    /// or <see cref="AddEventSink(Func{IServiceProvider, IHealthEventSink})"/>.
+    /// </summary>
+    internal List<Func<IServiceProvider, IHealthEventSink>> EventSinkFactories { get; } = [];
+
+    /// <summary>
+    /// Registers a custom <see cref="IHealthEventSink"/> implementation to receive
+    /// health state change events. The sink type must be registered in DI separately
+    /// (e.g., via <c>services.AddSingleton&lt;T&gt;()</c>) before calling <c>AddHealthBoss</c>.
+    /// </summary>
+    /// <typeparam name="T">The concrete event sink type.</typeparam>
+    /// <returns>This <see cref="HealthBossOptions"/> instance for chaining.</returns>
+    public HealthBossOptions AddEventSink<T>() where T : class, IHealthEventSink
+    {
+        EventSinkFactories.Add(sp => sp.GetRequiredService<T>());
+        return this;
+    }
+
+    /// <summary>
+    /// Registers a custom <see cref="IHealthEventSink"/> using a factory delegate.
+    /// The factory receives the <see cref="IServiceProvider"/> and returns the sink instance.
+    /// </summary>
+    /// <param name="factory">Factory that creates the event sink from the service provider.</param>
+    /// <returns>This <see cref="HealthBossOptions"/> instance for chaining.</returns>
+    public HealthBossOptions AddEventSink(Func<IServiceProvider, IHealthEventSink> factory)
+    {
+        ArgumentNullException.ThrowIfNull(factory);
+        EventSinkFactories.Add(factory);
+        return this;
+    }
 
     /// <summary>
     /// Gets or sets an optional <see cref="System.TimeProvider"/> override.

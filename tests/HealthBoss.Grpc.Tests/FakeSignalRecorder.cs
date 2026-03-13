@@ -9,10 +9,12 @@ namespace HealthBoss.Grpc.Tests;
 
 /// <summary>
 /// Test double that captures recorded signals for assertion.
+/// Implements <see cref="ISignalWriter"/> — the narrow write-only interface
+/// that <see cref="GrpcClientHealthInterceptor"/> depends on.
 /// Thread-safe: all access is synchronized with a lock since
 /// <see cref="Record"/> may be called from concurrent gRPC callbacks.
 /// </summary>
-internal sealed class FakeSignalRecorder : ISignalRecorder
+internal sealed class FakeSignalRecorder : ISignalWriter
 {
     private readonly List<HealthSignal> _signals = [];
     private readonly object _lock = new();

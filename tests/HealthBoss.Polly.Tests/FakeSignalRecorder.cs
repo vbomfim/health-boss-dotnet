@@ -9,10 +9,12 @@ namespace HealthBoss.Polly.Tests;
 
 /// <summary>
 /// Test double that captures recorded signals for assertion.
+/// Implements <see cref="ISignalWriter"/> — the narrow write-only interface
+/// that <see cref="PollyHealthBossExtensions"/> depends on.
 /// Thread-safe: all access is synchronized with a lock since
 /// <see cref="Record"/> is called from async Polly callbacks.
 /// </summary>
-internal sealed class FakeSignalRecorder : ISignalRecorder
+internal sealed class FakeSignalRecorder : ISignalWriter
 {
     private readonly List<HealthSignal> _signals = [];
     private readonly object _lock = new();
