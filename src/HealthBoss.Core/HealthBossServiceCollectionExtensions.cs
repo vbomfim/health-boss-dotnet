@@ -119,7 +119,7 @@ public static class HealthBossServiceCollectionExtensions
             sp.GetRequiredService<IHealthOrchestrator>());
         services.AddSingleton<IHealthReportProvider>(sp =>
             sp.GetRequiredService<IHealthOrchestrator>());
-        services.AddSingleton<ISignalIngress>(sp =>
+        services.AddSingleton<ISignalRecorder>(sp =>
             sp.GetRequiredService<IHealthOrchestrator>());
 
         // Session health tracker — active session gauge for SIGTERM drain decisions

@@ -6,7 +6,7 @@ Track the health of gRPC backend pools via quorum evaluation — are enough inst
 
 `HealthBoss.Grpc` provides **quorum evaluation** for gRPC backend pools. It answers: *"Do I have enough healthy instances behind this gRPC service?"*
 
-Individual gRPC call tracking (success/failure per call) is handled by [otel-events](https://github.com/vbomfim/otel-events-dotnet) `OtelEvents.Grpc` — HealthBoss subscribes to those events via `ISignalIngress`.
+Individual gRPC call tracking (success/failure per call) is handled by [otel-events](https://github.com/vbomfim/otel-events-dotnet) `OtelEvents.Grpc` — HealthBoss subscribes to those events via `ISignalRecorder`.
 
 | Concern | Owner |
 |---------|-------|
@@ -27,7 +27,7 @@ builder.Services.AddOtelEventsSubscriptions(subs =>
 {
     subs.On("grpc.call.failed", (ctx, ct) =>
     {
-        var ingress = sp.GetRequiredService<ISignalIngress>();
+        var ingress = sp.GetRequiredService<ISignalRecorder>();
         ingress.RecordSignal(
             new DependencyId("payment-grpc"),
             new HealthSignal(ctx.Timestamp, ..., SignalOutcome.Failure));
@@ -36,7 +36,7 @@ builder.Services.AddOtelEventsSubscriptions(subs =>
 
     subs.On("grpc.call.completed", (ctx, ct) =>
     {
-        var ingress = sp.GetRequiredService<ISignalIngress>();
+        var ingress = sp.GetRequiredService<ISignalRecorder>();
         ingress.RecordSignal(
             new DependencyId("payment-grpc"),
             new HealthSignal(ctx.Timestamp, ..., SignalOutcome.Success));
@@ -142,7 +142,7 @@ Instance identifiers are opaque (`instance-0`, `instance-1`, ...) — never IPs 
 For a complete gRPC health picture, use both:
 
 ```csharp
-// 1. Call-level: otel-events intercepts, you subscribe → ISignalIngress
+// 1. Call-level: otel-events intercepts, you subscribe → ISignalRecorder
 //    (see "Feeding gRPC signals" above)
 
 // 2. Pool-level: adapter + quorum evaluator checks instance availability

@@ -11,7 +11,7 @@ namespace HealthBoss.Core;
 /// Produces aggregate <see cref="HealthReport"/> and <see cref="ReadinessReport"/>
 /// for probe endpoints and provides a read-only health state for shutdown decisions.
 /// </summary>
-public interface IHealthOrchestrator : IHealthStateReader, IHealthReportProvider, ISignalIngress
+public interface IHealthOrchestrator : IHealthStateReader, IHealthReportProvider, ISignalRecorder
 {
     /// <summary>
     /// Gets a specific dependency's monitor, or <c>null</c> if the dependency is not registered.

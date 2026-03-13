@@ -14,7 +14,7 @@ dotnet run
 # Place an order
 curl -X POST http://localhost:5000/orders
 
-# Fulfill an order (manual signal recording via ISignalIngress, ~10% failure rate)
+# Fulfill an order (manual signal recording via ISignalRecorder, ~10% failure rate)
 curl -X POST http://localhost:5000/orders/1/fulfill
 
 # Inject signals to simulate failures and watch health degrade
@@ -34,8 +34,8 @@ curl http://localhost:5000/healthz/startup
 | Feature | Where |
 |---------|-------|
 | Component registration with thresholds | `AddHealthBoss()` in Program.cs |
-| Manual signal recording | `POST /orders/{id}/fulfill` using `ISignalIngress` |
-| Signal injection for testing | `POST /simulate/{component}/{outcome}/{count}` using `ISignalIngress` |
+| Manual signal recording | `POST /orders/{id}/fulfill` using `ISignalRecorder` |
+| Signal injection for testing | `POST /simulate/{component}/{outcome}/{count}` using `ISignalRecorder` |
 | Programmatic health reading | `GET /status` using `IHealthOrchestrator` |
 | Kubernetes probes | `MapHealthBossEndpoints()` |
 | OpenTelemetry metrics | Console exporter wired to `HealthBoss` meter |

@@ -77,11 +77,11 @@ app.MapPost("/orders", () =>
     return Results.Created($"/orders/{id}", new { Id = id, Status = "created" });
 }).WithTags("Orders").WithSummary("Place an order");
 
-// Manual signal recording via ISignalIngress — the recommended way
+// Manual signal recording via ISignalRecorder — the recommended way
 // to record signals for any dependency without knowing internal buffer topology.
 app.MapPost("/orders/{id}/fulfill", (int id, HttpContext ctx) =>
 {
-    var ingress = ctx.RequestServices.GetRequiredService<ISignalIngress>();
+    var ingress = ctx.RequestServices.GetRequiredService<ISignalRecorder>();
     var dep = new DependencyId("orders-db");
     var sw = System.Diagnostics.Stopwatch.StartNew();
 
@@ -127,7 +127,7 @@ app.MapGet("/status", (HealthBoss.Core.IHealthOrchestrator health) =>
 // Inject signals on demand — use this to simulate failures and watch health degrade
 app.MapPost("/simulate/{component}/{outcome}/{count:int}", (string component, string outcome, int count, HttpContext ctx) =>
 {
-    var ingress = ctx.RequestServices.GetRequiredService<ISignalIngress>();
+    var ingress = ctx.RequestServices.GetRequiredService<ISignalRecorder>();
     var dep = new DependencyId(component);
     var signalOutcome = outcome.ToLowerInvariant() switch
     {

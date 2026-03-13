@@ -1,4 +1,4 @@
-// <copyright file="ISignalIngress.cs" company="HealthBoss">
+// <copyright file="ISignalRecorder.cs" company="HealthBoss">
 // Copyright (c) HealthBoss. All rights reserved.
 // </copyright>
 
@@ -15,7 +15,7 @@ namespace HealthBoss.Core;
 /// buffer topology.
 /// </para>
 /// </summary>
-public interface ISignalIngress
+public interface ISignalRecorder
 {
     /// <summary>
     /// Records a health signal for the specified dependency.

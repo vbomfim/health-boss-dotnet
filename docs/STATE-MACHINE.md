@@ -6,12 +6,12 @@ How HealthBoss decides if your dependencies are healthy, degraded, or down.
 
 HealthBoss makes decisions based on **health signals** — success/failure events from your dependencies. Signals flow in through two paths:
 
-### 1. ISignalIngress (primary API)
+### 1. ISignalRecorder (primary API)
 
 The main entry point for feeding signals from any source:
 
 ```csharp
-var ingress = sp.GetRequiredService<ISignalIngress>();
+var ingress = sp.GetRequiredService<ISignalRecorder>();
 ingress.RecordSignal(
     new DependencyId("orders-db"),
     new HealthSignal(DateTimeOffset.UtcNow, dep, SignalOutcome.Failure, latency));
@@ -39,7 +39,7 @@ builder.Services.AddOtelEventsSubscriptions(subs =>
 {
     subs.On("http.request.failed", (ctx, ct) =>
     {
-        var ingress = sp.GetRequiredService<ISignalIngress>();
+        var ingress = sp.GetRequiredService<ISignalRecorder>();
         ingress.RecordSignal(
             new DependencyId("orders-db"),
             new HealthSignal(ctx.Timestamp, ..., SignalOutcome.Failure));
@@ -57,7 +57,7 @@ builder.Services.AddOtelEventsSubscriptions(subs =>
    grpc.call.failed)    │  and calls RecordSignal
                         ▼
             ┌──────────────────┐
-            │  ISignalIngress  │  Routes by DependencyId
+            │  ISignalRecorder  │  Routes by DependencyId
             └────────┬─────────┘
                      ▼
             ┌─────────────┐

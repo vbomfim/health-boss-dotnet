@@ -9,43 +9,43 @@ using Microsoft.Extensions.DependencyInjection;
 namespace HealthBoss.Core.Tests;
 
 /// <summary>
-/// Tests for <see cref="ISignalIngress"/> DI registration and behavior.
+/// Tests for <see cref="ISignalRecorder"/> DI registration and behavior.
 /// Verifies that the orchestrator-level signal recording interface is
 /// properly wired as a singleton forwarding to <see cref="IHealthOrchestrator"/>.
 /// </summary>
 public sealed class SignalIngressDiTests
 {
     [Fact]
-    public void AddHealthBoss_registers_ISignalIngress_as_singleton()
+    public void AddHealthBoss_registers_ISignalRecorder_as_singleton()
     {
         var services = new ServiceCollection();
         services.AddHealthBoss(opts => opts.AddComponent("redis"));
 
         using var provider = services.BuildServiceProvider();
 
-        var ingress1 = provider.GetRequiredService<ISignalIngress>();
-        var ingress2 = provider.GetRequiredService<ISignalIngress>();
+        var ingress1 = provider.GetRequiredService<ISignalRecorder>();
+        var ingress2 = provider.GetRequiredService<ISignalRecorder>();
 
         ingress1.Should().NotBeNull();
         ingress1.Should().BeSameAs(ingress2);
     }
 
     [Fact]
-    public void ISignalIngress_resolves_to_same_instance_as_IHealthOrchestrator()
+    public void ISignalRecorder_resolves_to_same_instance_as_IHealthOrchestrator()
     {
         var services = new ServiceCollection();
         services.AddHealthBoss(opts => opts.AddComponent("redis"));
 
         using var provider = services.BuildServiceProvider();
 
-        var ingress = provider.GetRequiredService<ISignalIngress>();
+        var ingress = provider.GetRequiredService<ISignalRecorder>();
         var orchestrator = provider.GetRequiredService<IHealthOrchestrator>();
 
         ingress.Should().BeSameAs(orchestrator);
     }
 
     [Fact]
-    public void IHealthOrchestrator_implements_ISignalIngress()
+    public void IHealthOrchestrator_implements_ISignalRecorder()
     {
         var services = new ServiceCollection();
         services.AddHealthBoss(opts => opts.AddComponent("redis"));
@@ -54,18 +54,18 @@ public sealed class SignalIngressDiTests
 
         var orchestrator = provider.GetRequiredService<IHealthOrchestrator>();
 
-        orchestrator.Should().BeAssignableTo<ISignalIngress>();
+        orchestrator.Should().BeAssignableTo<ISignalRecorder>();
     }
 
     [Fact]
-    public void RecordSignal_via_ISignalIngress_flows_to_orchestrator()
+    public void RecordSignal_via_ISignalRecorder_flows_to_orchestrator()
     {
         var services = new ServiceCollection();
         services.AddHealthBoss(opts => opts.AddComponent("redis"));
 
         using var provider = services.BuildServiceProvider();
 
-        var ingress = provider.GetRequiredService<ISignalIngress>();
+        var ingress = provider.GetRequiredService<ISignalRecorder>();
         var orchestrator = provider.GetRequiredService<IHealthOrchestrator>();
 
         var depId = new DependencyId("redis");
@@ -84,14 +84,14 @@ public sealed class SignalIngressDiTests
     }
 
     [Fact]
-    public void RecordSignal_via_ISignalIngress_for_unknown_dep_does_not_throw()
+    public void RecordSignal_via_ISignalRecorder_for_unknown_dep_does_not_throw()
     {
         var services = new ServiceCollection();
         services.AddHealthBoss(opts => opts.AddComponent("redis"));
 
         using var provider = services.BuildServiceProvider();
 
-        var ingress = provider.GetRequiredService<ISignalIngress>();
+        var ingress = provider.GetRequiredService<ISignalRecorder>();
         var unknownDep = new DependencyId("unknown");
 
         // Should not throw — signal is dropped with warning

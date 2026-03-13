@@ -47,10 +47,10 @@ typed helpers for HTTP inbound/outbound tracking and structured event logging vi
 `dotnet otel-events` CLI. This replaces the removed `InboundHealthMiddleware` and
 `HealthBossDelegatingHandler` with schema-driven, OpenTelemetry-native instrumentation.
 
-### Manual: ISignalIngress
+### Manual: ISignalRecorder
 
 ```csharp
-public class MyService(ISignalIngress ingress)
+public class MyService(ISignalRecorder ingress)
 {
     public async Task DoWork()
     {
@@ -140,7 +140,7 @@ Key interfaces available via DI:
 | `IHealthReportProvider` | Aggregate health + readiness reports |
 | `IHealthStateReader` | Current state, snapshots, signal counts |
 | `IStartupTracker` | Mark startup as `Ready` or `Failed` |
-| `ISignalIngress` | Record health signals by dependency ID |
+| `ISignalRecorder` | Record health signals by dependency ID |
 | `ISessionHealthTracker` | Track active sessions for graceful drain |
 
 ## Multi-Tenant Health
