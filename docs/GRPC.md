@@ -27,8 +27,8 @@ builder.Services.AddOtelEventsSubscriptions(subs =>
 {
     subs.On("grpc.call.failed", (ctx, ct) =>
     {
-        var ingress = sp.GetRequiredService<ISignalRecorder>();
-        ingress.RecordSignal(
+        var recorder = sp.GetRequiredService<ISignalRecorder>();
+        recorder.RecordSignal(
             new DependencyId("payment-grpc"),
             new HealthSignal(ctx.Timestamp, ..., SignalOutcome.Failure));
         return Task.CompletedTask;
@@ -36,8 +36,8 @@ builder.Services.AddOtelEventsSubscriptions(subs =>
 
     subs.On("grpc.call.completed", (ctx, ct) =>
     {
-        var ingress = sp.GetRequiredService<ISignalRecorder>();
-        ingress.RecordSignal(
+        var recorder = sp.GetRequiredService<ISignalRecorder>();
+        recorder.RecordSignal(
             new DependencyId("payment-grpc"),
             new HealthSignal(ctx.Timestamp, ..., SignalOutcome.Success));
         return Task.CompletedTask;
@@ -154,7 +154,7 @@ var assessment = quorumEvaluator.Evaluate(results, quorumPolicy);
 
 if (!assessment.QuorumMet)
 {
-    ingress.RecordSignal(
+    recorder.RecordSignal(
         new DependencyId("payment-grpc"),
         new HealthSignal(clock.UtcNow, depId, SignalOutcome.Failure));
 }

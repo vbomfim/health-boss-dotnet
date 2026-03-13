@@ -23,11 +23,11 @@ public sealed class SignalIngressDiTests
 
         using var provider = services.BuildServiceProvider();
 
-        var ingress1 = provider.GetRequiredService<ISignalRecorder>();
-        var ingress2 = provider.GetRequiredService<ISignalRecorder>();
+        var recorder1 = provider.GetRequiredService<ISignalRecorder>();
+        var recorder2 = provider.GetRequiredService<ISignalRecorder>();
 
-        ingress1.Should().NotBeNull();
-        ingress1.Should().BeSameAs(ingress2);
+        recorder1.Should().NotBeNull();
+        recorder1.Should().BeSameAs(recorder2);
     }
 
     [Fact]
@@ -38,10 +38,10 @@ public sealed class SignalIngressDiTests
 
         using var provider = services.BuildServiceProvider();
 
-        var ingress = provider.GetRequiredService<ISignalRecorder>();
+        var recorder = provider.GetRequiredService<ISignalRecorder>();
         var orchestrator = provider.GetRequiredService<IHealthOrchestrator>();
 
-        ingress.Should().BeSameAs(orchestrator);
+        recorder.Should().BeSameAs(orchestrator);
     }
 
     [Fact]
@@ -65,13 +65,13 @@ public sealed class SignalIngressDiTests
 
         using var provider = services.BuildServiceProvider();
 
-        var ingress = provider.GetRequiredService<ISignalRecorder>();
+        var recorder = provider.GetRequiredService<ISignalRecorder>();
         var orchestrator = provider.GetRequiredService<IHealthOrchestrator>();
 
         var depId = new DependencyId("redis");
         for (int i = 0; i < 10; i++)
         {
-            ingress.RecordSignal(depId, new HealthSignal(
+            recorder.RecordSignal(depId, new HealthSignal(
                 DateTimeOffset.UtcNow.AddSeconds(i),
                 depId,
                 SignalOutcome.Success));
@@ -91,11 +91,11 @@ public sealed class SignalIngressDiTests
 
         using var provider = services.BuildServiceProvider();
 
-        var ingress = provider.GetRequiredService<ISignalRecorder>();
+        var recorder = provider.GetRequiredService<ISignalRecorder>();
         var unknownDep = new DependencyId("unknown");
 
         // Should not throw — signal is dropped with warning
-        var act = () => ingress.RecordSignal(unknownDep, new HealthSignal(
+        var act = () => recorder.RecordSignal(unknownDep, new HealthSignal(
             DateTimeOffset.UtcNow, unknownDep, SignalOutcome.Success));
 
         act.Should().NotThrow();

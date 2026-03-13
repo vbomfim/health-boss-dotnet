@@ -11,8 +11,8 @@ HealthBoss makes decisions based on **health signals** — success/failure event
 The main entry point for feeding signals from any source:
 
 ```csharp
-var ingress = sp.GetRequiredService<ISignalRecorder>();
-ingress.RecordSignal(
+var recorder = sp.GetRequiredService<ISignalRecorder>();
+recorder.RecordSignal(
     new DependencyId("orders-db"),
     new HealthSignal(DateTimeOffset.UtcNow, dep, SignalOutcome.Failure, latency));
 ```
@@ -39,8 +39,8 @@ builder.Services.AddOtelEventsSubscriptions(subs =>
 {
     subs.On("http.request.failed", (ctx, ct) =>
     {
-        var ingress = sp.GetRequiredService<ISignalRecorder>();
-        ingress.RecordSignal(
+        var recorder = sp.GetRequiredService<ISignalRecorder>();
+        recorder.RecordSignal(
             new DependencyId("orders-db"),
             new HealthSignal(ctx.Timestamp, ..., SignalOutcome.Failure));
         return Task.CompletedTask;

@@ -81,7 +81,7 @@ app.MapPost("/orders", () =>
 // to record signals for any dependency without knowing internal buffer topology.
 app.MapPost("/orders/{id}/fulfill", (int id, HttpContext ctx) =>
 {
-    var ingress = ctx.RequestServices.GetRequiredService<ISignalRecorder>();
+    var recorder = ctx.RequestServices.GetRequiredService<ISignalRecorder>();
     var dep = new DependencyId("orders-db");
     var sw = System.Diagnostics.Stopwatch.StartNew();
 
@@ -91,14 +91,14 @@ app.MapPost("/orders/{id}/fulfill", (int id, HttpContext ctx) =>
         if (Random.Shared.NextDouble() < 0.1)
             throw new TimeoutException("DB timeout");
 
-        ingress.RecordSignal(dep, new HealthSignal(
+        recorder.RecordSignal(dep, new HealthSignal(
             DateTimeOffset.UtcNow, dep, SignalOutcome.Success, sw.Elapsed));
 
         return Results.Ok(new { Id = id, Status = "fulfilled" });
     }
     catch (Exception)
     {
-        ingress.RecordSignal(dep, new HealthSignal(
+        recorder.RecordSignal(dep, new HealthSignal(
             DateTimeOffset.UtcNow, dep, SignalOutcome.Failure, sw.Elapsed));
 
         return Results.Problem("Order fulfillment failed", statusCode: 503);
@@ -127,7 +127,7 @@ app.MapGet("/status", (HealthBoss.Core.IHealthOrchestrator health) =>
 // Inject signals on demand — use this to simulate failures and watch health degrade
 app.MapPost("/simulate/{component}/{outcome}/{count:int}", (string component, string outcome, int count, HttpContext ctx) =>
 {
-    var ingress = ctx.RequestServices.GetRequiredService<ISignalRecorder>();
+    var recorder = ctx.RequestServices.GetRequiredService<ISignalRecorder>();
     var dep = new DependencyId(component);
     var signalOutcome = outcome.ToLowerInvariant() switch
     {
@@ -138,7 +138,7 @@ app.MapPost("/simulate/{component}/{outcome}/{count:int}", (string component, st
     };
 
     for (var i = 0; i < count; i++)
-        ingress.RecordSignal(dep, new HealthSignal(DateTimeOffset.UtcNow, dep, signalOutcome, TimeSpan.FromMilliseconds(50)));
+        recorder.RecordSignal(dep, new HealthSignal(DateTimeOffset.UtcNow, dep, signalOutcome, TimeSpan.FromMilliseconds(50)));
 
     return Results.Ok(new { Component = component, Outcome = outcome, Count = count });
 }).WithTags("Simulate").WithSummary("Inject signals: /simulate/{component}/{success|failure|timeout}/{count}");

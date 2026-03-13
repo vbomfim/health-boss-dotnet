@@ -50,7 +50,7 @@ typed helpers for HTTP inbound/outbound tracking and structured event logging vi
 ### Manual: ISignalRecorder
 
 ```csharp
-public class MyService(ISignalRecorder ingress)
+public class MyService(ISignalRecorder recorder)
 {
     public async Task DoWork()
     {
@@ -59,13 +59,13 @@ public class MyService(ISignalRecorder ingress)
         try
         {
             await CallDependency();
-            ingress.RecordSignal(dep, new HealthSignal(
+            recorder.RecordSignal(dep, new HealthSignal(
                 DateTimeOffset.UtcNow, dep,
                 SignalOutcome.Success, sw.Elapsed));
         }
         catch
         {
-            ingress.RecordSignal(dep, new HealthSignal(
+            recorder.RecordSignal(dep, new HealthSignal(
                 DateTimeOffset.UtcNow, dep,
                 SignalOutcome.Failure, sw.Elapsed));
             throw;
