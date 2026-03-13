@@ -9,10 +9,12 @@ namespace HealthBoss.Grpc.Tests;
 
 /// <summary>
 /// Test double that captures recorded signals for assertion.
+/// Implements <see cref="ISignalBuffer"/> (the narrowest available write interface
+/// after <c>ISignalRecorder</c> was removed in v1.0).
 /// Thread-safe: all access is synchronized with a lock since
 /// <see cref="Record"/> may be called from concurrent gRPC callbacks.
 /// </summary>
-internal sealed class FakeSignalRecorder : ISignalRecorder
+internal sealed class FakeSignalRecorder : ISignalBuffer
 {
     private readonly List<HealthSignal> _signals = [];
     private readonly object _lock = new();
@@ -33,6 +35,34 @@ internal sealed class FakeSignalRecorder : ISignalRecorder
         lock (_lock)
         {
             _signals.Add(signal);
+        }
+    }
+
+    public IReadOnlyList<HealthSignal> GetSignals(TimeSpan window)
+    {
+        lock (_lock)
+        {
+            var cutoff = DateTimeOffset.UtcNow - window;
+            return _signals.Where(s => s.Timestamp >= cutoff).ToList();
+        }
+    }
+
+    public void Trim(DateTimeOffset cutoff)
+    {
+        lock (_lock)
+        {
+            _signals.RemoveAll(s => s.Timestamp < cutoff);
+        }
+    }
+
+    public int Count
+    {
+        get
+        {
+            lock (_lock)
+            {
+                return _signals.Count;
+            }
         }
     }
 }

@@ -1,0 +1,84 @@
+# health.otel.yaml — OtelEvents schema for HealthBoss v1.0
+# Generate typed helpers: dotnet otel-events generate
+schema_version: 1.0.0
+namespace: HealthBoss.Core.Events
+
+events:
+  # ── Inbound HTTP tracking (replaces InboundHealthMiddleware) ──────
+  - name: InboundRequestCompleted
+    severity: Informational
+    attributes:
+      - id: http.request.method
+        type: string
+        requirement_level: required
+      - id: url.path
+        type: string
+        requirement_level: required
+      - id: http.response.status_code
+        type: int
+        requirement_level: required
+      - id: healthboss.component
+        type: string
+        requirement_level: required
+      - id: healthboss.signal_outcome
+        type: string
+        requirement_level: required
+      - id: healthboss.latency_ms
+        type: double
+        requirement_level: recommended
+
+  # ── Outbound HTTP tracking (replaces HealthBossDelegatingHandler) ──
+  - name: OutboundRequestCompleted
+    severity: Informational
+    attributes:
+      - id: http.request.method
+        type: string
+        requirement_level: required
+      - id: server.address
+        type: string
+        requirement_level: required
+      - id: http.response.status_code
+        type: int
+        requirement_level: required
+      - id: healthboss.component
+        type: string
+        requirement_level: required
+      - id: healthboss.signal_outcome
+        type: string
+        requirement_level: required
+      - id: healthboss.latency_ms
+        type: double
+        requirement_level: recommended
+
+  # ── State transition logging (replaces StructuredLogEventSink) ─────
+  - name: DependencyStateChanged
+    severity: Informational
+    attributes:
+      - id: healthboss.dependency_id
+        type: string
+        requirement_level: required
+      - id: healthboss.previous_state
+        type: string
+        requirement_level: required
+      - id: healthboss.new_state
+        type: string
+        requirement_level: required
+
+  - name: TenantHealthChanged
+    severity: Warning
+    attributes:
+      - id: healthboss.dependency_id
+        type: string
+        requirement_level: required
+      - id: healthboss.tenant_id
+        type: string
+        requirement_level: required
+      - id: healthboss.previous_status
+        type: string
+        requirement_level: required
+      - id: healthboss.new_status
+        type: string
+        requirement_level: required
+      - id: healthboss.success_rate
+        type: double
+        requirement_level: recommended

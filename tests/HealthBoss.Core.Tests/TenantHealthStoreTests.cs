@@ -223,7 +223,6 @@ public sealed class TenantHealthStoreTests : IDisposable
         store.Should().BeAssignableTo<ITenantHealthTracker>();
         store.Should().NotBeAssignableTo<IHealthReportProvider>();
         store.Should().NotBeAssignableTo<IDependencyMonitor>();
-        store.Should().NotBeAssignableTo<ISignalRecorder>();
     }
 
     [Fact]

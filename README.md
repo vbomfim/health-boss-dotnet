@@ -7,7 +7,7 @@ Stateful health intelligence for ASP.NET Core. HealthBoss tracks dependency heal
 | Package | Purpose |
 |---------|---------|
 | `HealthBoss.Core` | Signal recording, health assessment, state machine |
-| `HealthBoss.AspNetCore` | Probe endpoints + HTTP request/response tracking |
+| `HealthBoss.AspNetCore` | K8s probe endpoints (`/healthz/*`) |
 | `HealthBoss.Grpc` | gRPC subchannel health (quorum evaluation) |
 | `HealthBoss.Polly` | Polly v8 circuit breaker bridge |
 
@@ -33,50 +33,40 @@ That's it. HealthBoss will:
 
 HealthBoss needs signals (success/failure events) to assess health. You can feed them automatically or manually.
 
-### Automatic: HTTP tracking
-
-```csharp
-// Track inbound requests (maps URL paths to components)
-app.UseHealthBossInboundTracking(opts =>
-{
-    opts.Map("/api/orders", "orders-db");
-    opts.Map("/api/payments", "payment-api");
-});
-
-// Track outbound HttpClient calls
-services.AddHttpClient("payment-api")
-    .AddHealthBossOutboundTracking(opts =>
-    {
-        opts.ComponentName = "payment-api";
-    });
-```
-
 ### Automatic: Polly circuit breakers
 
 ```csharp
 builder.AddCircuitBreaker(new CircuitBreakerStrategyOptions())
-    .WithHealthBossTracking(signalRecorder, new DependencyId("payment-api"), clock);
+    .WithHealthBossTracking(signalBuffer, new DependencyId("payment-api"), clock);
 ```
 
-### Manual: ISignalRecorder
+### Automatic: otel-events (coming soon)
+
+HealthBoss ships an `OtelEvents.Schema` file (`health.otel.yaml`) that will generate
+typed helpers for HTTP inbound/outbound tracking and structured event logging via the
+`dotnet otel-events` CLI. This replaces the removed `InboundHealthMiddleware` and
+`HealthBossDelegatingHandler` with schema-driven, OpenTelemetry-native instrumentation.
+
+### Manual: ISignalIngress
 
 ```csharp
-public class MyService(ISignalRecorder recorder)
+public class MyService(ISignalIngress ingress)
 {
     public async Task DoWork()
     {
+        var dep = new DependencyId("my-dep");
         var sw = Stopwatch.StartNew();
         try
         {
             await CallDependency();
-            recorder.Record(new HealthSignal(
-                DateTimeOffset.UtcNow, new DependencyId("my-dep"),
+            ingress.RecordSignal(dep, new HealthSignal(
+                DateTimeOffset.UtcNow, dep,
                 SignalOutcome.Success, sw.Elapsed));
         }
         catch
         {
-            recorder.Record(new HealthSignal(
-                DateTimeOffset.UtcNow, new DependencyId("my-dep"),
+            ingress.RecordSignal(dep, new HealthSignal(
+                DateTimeOffset.UtcNow, dep,
                 SignalOutcome.Failure, sw.Elapsed));
             throw;
         }
@@ -150,7 +140,7 @@ Key interfaces available via DI:
 | `IHealthReportProvider` | Aggregate health + readiness reports |
 | `IHealthStateReader` | Current state, snapshots, signal counts |
 | `IStartupTracker` | Mark startup as `Ready` or `Failed` |
-| `ISignalRecorder` | Record health signals manually |
+| `ISignalIngress` | Record health signals by dependency ID |
 | `ISessionHealthTracker` | Track active sessions for graceful drain |
 
 ## Multi-Tenant Health
@@ -191,6 +181,14 @@ public class SlackAlertSink : IHealthEventSink
     public Task OnTenantHealthChanged(TenantHealthEvent evt, CancellationToken ct)
         => Task.CompletedTask;
 }
+
+// Register via options:
+services.AddSingleton<SlackAlertSink>();
+services.AddHealthBoss(opts =>
+{
+    opts.AddComponent("orders-db");
+    opts.AddEventSink<SlackAlertSink>();
+});
 ```
 
 ## Observability

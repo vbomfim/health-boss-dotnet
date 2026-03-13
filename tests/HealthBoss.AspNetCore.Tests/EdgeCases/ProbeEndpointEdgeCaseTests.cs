@@ -19,6 +19,7 @@
 
 using System.Net;
 using FluentAssertions;
+using HealthBoss.Core;
 using HealthBoss.Core.Contracts;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.TestHost;
@@ -190,7 +191,7 @@ public sealed class ProbeEndpointEdgeCaseTests : IAsyncDisposable
     [Fact]
     public async Task StartupTracker_concurrent_MarkReady_does_not_throw()
     {
-        var tracker = new StartupTracker();
+        var tracker = new FakeStartupTracker();
 
         // Act — 20 parallel calls to MarkReady
         var tasks = Enumerable.Range(0, 20)
@@ -210,7 +211,7 @@ public sealed class ProbeEndpointEdgeCaseTests : IAsyncDisposable
     [Fact]
     public async Task StartupTracker_concurrent_ready_and_failed_reaches_valid_end_state()
     {
-        var tracker = new StartupTracker();
+        var tracker = new FakeStartupTracker();
 
         // Act — racing MarkReady and MarkFailed
         var readyTasks = Enumerable.Range(0, 10)
@@ -234,7 +235,7 @@ public sealed class ProbeEndpointEdgeCaseTests : IAsyncDisposable
     [Fact]
     public async Task StartupTracker_concurrent_read_and_write_does_not_throw()
     {
-        var tracker = new StartupTracker();
+        var tracker = new FakeStartupTracker();
         var statuses = new System.Collections.Concurrent.ConcurrentBag<StartupStatus>();
 
         // Act — readers and writers in parallel
@@ -302,17 +303,17 @@ public sealed class ProbeEndpointEdgeCaseTests : IAsyncDisposable
     // ─── Test Infrastructure ───────────────────────────────────
 
     private async Task<TestEnv> CreateTestEnv(
-        IHealthReportProvider? provider = null,
-        IStartupTracker? tracker = null,
+        HealthBoss.Core.IHealthReportProvider? provider = null,
+        HealthBoss.Core.IStartupTracker? tracker = null,
         Action<HealthBossEndpointOptions>? configure = null)
     {
         provider ??= new FakeHealthReportProvider();
-        tracker ??= new StartupTracker();
+        tracker ??= new FakeStartupTracker();
 
         var builder = WebApplication.CreateBuilder(Array.Empty<string>());
         builder.WebHost.UseTestServer();
         builder.Services.AddSingleton<HealthBoss.Core.IHealthReportProvider>(provider);
-        builder.Services.AddSingleton<HealthBoss.Core.IStartupTracker>((HealthBoss.Core.IStartupTracker)tracker);
+        builder.Services.AddSingleton<HealthBoss.Core.IStartupTracker>(tracker);
 
         var app = builder.Build();
         app.MapHealthBossEndpoints(configure);

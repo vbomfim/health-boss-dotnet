@@ -14,7 +14,7 @@ namespace HealthBoss.Core.Tests.EdgeCases;
 
 /// <summary>
 /// Edge-case and boundary-value tests for Sprint 5 components:
-/// QuorumEvaluator, EventSinkDispatcher, StructuredLogEventSink.
+/// QuorumEvaluator, EventSinkDispatcher.
 /// These fill coverage gaps left by the developer unit tests.
 /// </summary>
 public sealed class Sprint5EdgeCaseTests
@@ -378,106 +378,6 @@ public sealed class Sprint5EdgeCaseTests
         await dispatcher.DispatchAsync(SampleHealthEvent);
 
         goodSink.HealthEvents.Should().ContainSingle();
-    }
-
-    // ═══════════════════════════════════════════════════════════════
-    // [COVERAGE] StructuredLogEventSink — all state transition pairs
-    // ═══════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// [COVERAGE] All valid HealthState transitions log at Information level.
-    /// The developer tests cover Healthy→Degraded and Degraded→CircuitOpen.
-    /// This covers the remaining transitions: CircuitOpen→Degraded (recovery started),
-    /// CircuitOpen→Healthy (direct recovery), Degraded→Healthy (recovery).
-    /// </summary>
-    [Theory]
-    [InlineData(HealthState.CircuitOpen, HealthState.Degraded)]
-    [InlineData(HealthState.CircuitOpen, HealthState.Healthy)]
-    [InlineData(HealthState.Degraded, HealthState.Healthy)]
-    [InlineData(HealthState.Healthy, HealthState.CircuitOpen)]
-    [InlineData(HealthState.Degraded, HealthState.CircuitOpen)]
-    public async Task StructuredLogSink_all_state_transitions_log_at_Information(
-        HealthState previous, HealthState newState)
-    {
-        var logger = new RecordingLogger<StructuredLogEventSink>();
-        var sink = new StructuredLogEventSink(logger);
-        var evt = new HealthEvent(TestDep, previous, newState, TestFixtures.BaseTime);
-
-        await sink.OnHealthStateChanged(evt);
-
-        logger.Entries.Should().ContainSingle(e => e.Level == LogLevel.Information);
-    }
-
-    /// <summary>
-    /// [COVERAGE] StructuredLogEventSink correctly logs dependency ID and both states.
-    /// </summary>
-    [Theory]
-    [InlineData(HealthState.CircuitOpen, HealthState.Healthy)]
-    [InlineData(HealthState.Degraded, HealthState.CircuitOpen)]
-    public async Task StructuredLogSink_transition_message_contains_both_states(
-        HealthState previous, HealthState newState)
-    {
-        var logger = new RecordingLogger<StructuredLogEventSink>();
-        var sink = new StructuredLogEventSink(logger);
-        var evt = new HealthEvent(TestDep, previous, newState, TestFixtures.BaseTime);
-
-        await sink.OnHealthStateChanged(evt);
-
-        var entry = logger.Entries.Should().ContainSingle().Subject;
-        entry.Message.Should().Contain(previous.ToString());
-        entry.Message.Should().Contain(newState.ToString());
-    }
-
-    /// <summary>
-    /// [COVERAGE] All TenantHealthStatus transitions use correct log level.
-    /// Covers transitions not in developer tests: Unavailable→Healthy, Unavailable→Degraded.
-    /// </summary>
-    [Theory]
-    [InlineData(TenantHealthStatus.Unavailable, TenantHealthStatus.Healthy, LogLevel.Information)]
-    [InlineData(TenantHealthStatus.Unavailable, TenantHealthStatus.Degraded, LogLevel.Warning)]
-    [InlineData(TenantHealthStatus.Healthy, TenantHealthStatus.Unavailable, LogLevel.Error)]
-    [InlineData(TenantHealthStatus.Degraded, TenantHealthStatus.Healthy, LogLevel.Information)]
-    public async Task StructuredLogSink_tenant_transition_uses_correct_log_level(
-        TenantHealthStatus previous, TenantHealthStatus newStatus, LogLevel expectedLevel)
-    {
-        var logger = new RecordingLogger<StructuredLogEventSink>();
-        var sink = new StructuredLogEventSink(logger);
-        var evt = new TenantHealthEvent(
-            TestDep, TestTenant, previous, newStatus,
-            SuccessRate: 0.50, OccurredAt: TestFixtures.BaseTime);
-
-        await sink.OnTenantHealthChanged(evt);
-
-        logger.Entries.Should().ContainSingle(e => e.Level == expectedLevel);
-    }
-
-    /// <summary>
-    /// [EDGE] StructuredLogEventSink null health event throws ArgumentNullException.
-    /// Developer tests cover constructor null; this covers method-level null.
-    /// </summary>
-    [Fact]
-    public async Task StructuredLogSink_null_health_event_throws()
-    {
-        var logger = new RecordingLogger<StructuredLogEventSink>();
-        var sink = new StructuredLogEventSink(logger);
-
-        Func<Task> act = () => sink.OnHealthStateChanged(null!);
-
-        await act.Should().ThrowAsync<ArgumentNullException>();
-    }
-
-    /// <summary>
-    /// [EDGE] StructuredLogEventSink null tenant event throws ArgumentNullException.
-    /// </summary>
-    [Fact]
-    public async Task StructuredLogSink_null_tenant_event_throws()
-    {
-        var logger = new RecordingLogger<StructuredLogEventSink>();
-        var sink = new StructuredLogEventSink(logger);
-
-        Func<Task> act = () => sink.OnTenantHealthChanged(null!);
-
-        await act.Should().ThrowAsync<ArgumentNullException>();
     }
 
     // ═══════════════════════════════════════════════════════════════

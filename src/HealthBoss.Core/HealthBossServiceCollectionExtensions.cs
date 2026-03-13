@@ -110,6 +110,8 @@ public static class HealthBossServiceCollectionExtensions
             sp.GetRequiredService<IHealthOrchestrator>());
         services.AddSingleton<IHealthReportProvider>(sp =>
             sp.GetRequiredService<IHealthOrchestrator>());
+        services.AddSingleton<ISignalIngress>(sp =>
+            sp.GetRequiredService<IHealthOrchestrator>());
 
         // Session health tracker — active session gauge for SIGTERM drain decisions
         services.AddSingleton<ISessionHealthTracker>(sp =>
@@ -123,21 +125,25 @@ public static class HealthBossServiceCollectionExtensions
         // Event sink pipeline: concrete sinks → dispatcher (fan-out with rate limiting)
         // The dispatcher implements IHealthEventSink itself for orchestrator integration,
         // but must NOT appear in its own sink collection (it IS the dispatcher, not a leaf sink).
+        // OpenTelemetryMetricEventSink is always included as a default sink.
+        // Consumers add custom sinks via options.AddEventSink<T>() or options.AddEventSink(factory).
         services.AddSingleton<OpenTelemetryMetricEventSink>(sp =>
             new OpenTelemetryMetricEventSink(
                 sp.GetRequiredService<IStateMachineMetrics>(),
                 sp.GetRequiredService<ITenantMetrics>()));
-        services.AddSingleton<StructuredLogEventSink>(sp =>
-            new StructuredLogEventSink(
-                sp.GetRequiredService<ILoggerFactory>().CreateLogger<StructuredLogEventSink>()));
 
         services.AddSingleton<EventSinkDispatcher>(sp =>
         {
             var sinks = new List<IHealthEventSink>
             {
                 sp.GetRequiredService<OpenTelemetryMetricEventSink>(),
-                sp.GetRequiredService<StructuredLogEventSink>(),
             };
+
+            // Resolve consumer-registered sinks via options (avoids circular DI)
+            foreach (var factory in options.EventSinkFactories)
+            {
+                sinks.Add(factory(sp));
+            }
 
             return new EventSinkDispatcher(
                 sinks,

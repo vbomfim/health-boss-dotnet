@@ -330,18 +330,18 @@ public sealed class TenantHealthEndpointIntegrationTests : IAsyncDisposable
     }
 
     private async Task<TestEnv> CreateTestEnv(
-        IHealthReportProvider? provider = null,
+        HealthBoss.Core.IHealthReportProvider? provider = null,
         ITenantHealthProvider? tenantProvider = null,
-        IStartupTracker? tracker = null,
+        HealthBoss.Core.IStartupTracker? tracker = null,
         Action<HealthBossEndpointOptions>? configure = null)
     {
         provider ??= new FakeHealthReportProvider();
-        tracker ??= new StartupTracker();
+        tracker ??= new FakeStartupTracker();
 
         var builder = WebApplication.CreateBuilder(Array.Empty<string>());
         builder.WebHost.UseTestServer();
         builder.Services.AddSingleton<HealthBoss.Core.IHealthReportProvider>(provider);
-        builder.Services.AddSingleton<HealthBoss.Core.IStartupTracker>((HealthBoss.Core.IStartupTracker)tracker);
+        builder.Services.AddSingleton<HealthBoss.Core.IStartupTracker>(tracker);
 
         if (tenantProvider is not null)
         {

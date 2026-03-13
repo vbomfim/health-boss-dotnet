@@ -20,28 +20,6 @@ public sealed class SignalBufferTests
         new(_clock, maxCapacity);
 
     [Fact]
-    public void SignalBuffer_implements_ISignalRecorder()
-    {
-        // ISP: SignalBuffer implements the narrow ISignalRecorder interface
-        var buffer = CreateBuffer();
-        buffer.Should().BeAssignableTo<ISignalRecorder>();
-    }
-
-    [Fact]
-    public void ISignalRecorder_Record_adds_signal_to_buffer()
-    {
-        // Verify recording through the narrow interface still works
-        ISignalRecorder recorder = CreateBuffer();
-        var signal = TestFixtures.CreateSignal(timestamp: _clock.UtcNow);
-
-        recorder.Record(signal);
-
-        // Cast back to read — the recorder interface is write-only
-        var buffer = (SignalBuffer)recorder;
-        buffer.Count.Should().Be(1);
-    }
-
-    [Fact]
     public void Record_and_GetSignals_returns_signal_within_window()
     {
         var buffer = CreateBuffer();

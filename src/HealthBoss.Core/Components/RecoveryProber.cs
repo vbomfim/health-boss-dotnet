@@ -18,7 +18,7 @@ namespace HealthBoss.Core.Components;
 internal sealed class RecoveryProber : IRecoveryProber, IDisposable
 {
     private readonly IRecoveryProbeHandler _handler;
-    private readonly ISignalRecorder _recorder;
+    private readonly ISignalBuffer _recorder;
     private readonly ISystemClock _clock;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<RecoveryProber> _logger;
@@ -29,14 +29,14 @@ internal sealed class RecoveryProber : IRecoveryProber, IDisposable
     /// Initializes a new instance of the <see cref="RecoveryProber"/> class.
     /// </summary>
     /// <param name="handler">User-provided probe logic.</param>
-    /// <param name="recorder">Signal recorder to capture probe results.</param>
+    /// <param name="recorder">Signal buffer to capture probe results.</param>
     /// <param name="clock">System clock for signal timestamps.</param>
     /// <param name="timeProvider">Time provider for testable delays.</param>
     /// <param name="logger">Optional logger for probe diagnostics.</param>
     /// <param name="metrics">Optional metrics recorder for probe tracking.</param>
     public RecoveryProber(
         IRecoveryProbeHandler handler,
-        ISignalRecorder recorder,
+        ISignalBuffer recorder,
         ISystemClock clock,
         TimeProvider timeProvider,
         ILogger<RecoveryProber>? logger = null,

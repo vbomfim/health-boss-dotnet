@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using FluentAssertions;
+using HealthBoss.Core;
 using HealthBoss.Core.Contracts;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.TestHost;
@@ -93,7 +94,7 @@ public sealed class ProbeEndpointIntegrationTests : IAsyncDisposable
     [Fact]
     public async Task Startup_returns_200_for_starting()
     {
-        var tracker = new StartupTracker(); // default is Starting
+        var tracker = new FakeStartupTracker(); // default is Starting
         await using var env = await CreateTestEnv(tracker: tracker);
 
         var response = await env.Client.GetAsync("/healthz/startup");
@@ -106,7 +107,7 @@ public sealed class ProbeEndpointIntegrationTests : IAsyncDisposable
     [Fact]
     public async Task Startup_returns_200_for_ready()
     {
-        var tracker = new StartupTracker();
+        var tracker = new FakeStartupTracker();
         tracker.MarkReady();
         await using var env = await CreateTestEnv(tracker: tracker);
 
@@ -120,7 +121,7 @@ public sealed class ProbeEndpointIntegrationTests : IAsyncDisposable
     [Fact]
     public async Task Startup_returns_503_for_failed()
     {
-        var tracker = new StartupTracker();
+        var tracker = new FakeStartupTracker();
         tracker.MarkFailed();
         await using var env = await CreateTestEnv(tracker: tracker);
 
@@ -270,17 +271,17 @@ public sealed class ProbeEndpointIntegrationTests : IAsyncDisposable
     }
 
     private async Task<TestEnv> CreateTestEnv(
-        IHealthReportProvider? provider = null,
-        IStartupTracker? tracker = null,
+        HealthBoss.Core.IHealthReportProvider? provider = null,
+        HealthBoss.Core.IStartupTracker? tracker = null,
         Action<HealthBossEndpointOptions>? configure = null)
     {
         provider ??= new FakeHealthReportProvider();
-        tracker ??= new StartupTracker();
+        tracker ??= new FakeStartupTracker();
 
         var builder = WebApplication.CreateBuilder(Array.Empty<string>());
         builder.WebHost.UseTestServer();
         builder.Services.AddSingleton<HealthBoss.Core.IHealthReportProvider>(provider);
-        builder.Services.AddSingleton<HealthBoss.Core.IStartupTracker>((HealthBoss.Core.IStartupTracker)tracker);
+        builder.Services.AddSingleton<HealthBoss.Core.IStartupTracker>(tracker);
 
         var app = builder.Build();
         app.MapHealthBossEndpoints(configure);

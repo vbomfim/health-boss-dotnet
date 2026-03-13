@@ -8,11 +8,17 @@ namespace HealthBoss.Core;
 
 /// <summary>
 /// Thread-safe ring buffer for health signal ingestion and retrieval.
-/// Extends <see cref="ISignalRecorder"/> so callers that only record signals
-/// can depend on the narrower interface (Interface Segregation Principle).
+/// Provides both write (<see cref="Record"/>) and read (<see cref="GetSignals"/>)
+/// access to buffered signals for a single component.
 /// </summary>
-public interface ISignalBuffer : ISignalRecorder
+public interface ISignalBuffer
 {
+    /// <summary>
+    /// Records a health signal. O(1), never blocks readers.
+    /// </summary>
+    /// <param name="signal">The signal to record.</param>
+    void Record(HealthSignal signal);
+
     /// <summary>
     /// Returns a snapshot of signals within the specified time window.
     /// </summary>

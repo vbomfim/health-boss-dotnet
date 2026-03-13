@@ -1,7 +1,6 @@
 using HealthBoss.AspNetCore;
 using HealthBoss.Core;
 using HealthBoss.Core.Contracts;
-using Microsoft.Extensions.DependencyInjection;
 using OpenTelemetry.Metrics;
 using Scalar.AspNetCore;
 
@@ -38,15 +37,12 @@ builder.Services.AddHealthBoss(opts =>
 });
 
 // ──────────────────────────────────────────────────────────────
-// 2. Track outbound HTTP calls automatically
+// 2. Register outbound HTTP clients
+//    Signal recording is done manually or via otel-events (coming soon).
 // ──────────────────────────────────────────────────────────────
 builder.Services.AddHttpClient("PaymentApi", client =>
 {
     client.BaseAddress = new Uri("https://api.payments.example.com");
-})
-.AddHealthBossOutboundTracking(opts =>
-{
-    opts.ComponentName = "payment-api";
 });
 
 // ──────────────────────────────────────────────────────────────
@@ -63,16 +59,7 @@ app.MapOpenApi();
 app.MapScalarApiReference();
 
 // ──────────────────────────────────────────────────────────────
-// 4. Track inbound requests — map URL paths to components
-// ──────────────────────────────────────────────────────────────
-app.UseHealthBossInboundTracking(opts =>
-{
-    opts.Map("/orders", "orders-db");
-    opts.Map("/payments", "payment-api");
-});
-
-// ──────────────────────────────────────────────────────────────
-// 5. Map Kubernetes probe endpoints
+// 4. Map Kubernetes probe endpoints
 // ──────────────────────────────────────────────────────────────
 app.MapHealthBossEndpoints(opts =>
 {
@@ -80,21 +67,21 @@ app.MapHealthBossEndpoints(opts =>
 });
 
 // ──────────────────────────────────────────────────────────────
-// 6. Application endpoints
+// 5. Application endpoints
 // ──────────────────────────────────────────────────────────────
 
-// Simulate placing an order — signals flow automatically via inbound tracking
 var nextOrderId = 0;
 app.MapPost("/orders", () =>
 {
     var id = Interlocked.Increment(ref nextOrderId);
     return Results.Created($"/orders/{id}", new { Id = id, Status = "created" });
-}).WithTags("Orders").WithSummary("Place an order (inbound tracking records the signal)");
+}).WithTags("Orders").WithSummary("Place an order");
 
-// Manual signal recording — useful for non-HTTP dependencies
+// Manual signal recording via ISignalIngress — the recommended way
+// to record signals for any dependency without knowing internal buffer topology.
 app.MapPost("/orders/{id}/fulfill", (int id, HttpContext ctx) =>
 {
-    var recorder = ctx.RequestServices.GetRequiredKeyedService<ISignalBuffer>("orders-db");
+    var ingress = ctx.RequestServices.GetRequiredService<ISignalIngress>();
     var dep = new DependencyId("orders-db");
     var sw = System.Diagnostics.Stopwatch.StartNew();
 
@@ -104,14 +91,14 @@ app.MapPost("/orders/{id}/fulfill", (int id, HttpContext ctx) =>
         if (Random.Shared.NextDouble() < 0.1)
             throw new TimeoutException("DB timeout");
 
-        recorder.Record(new HealthSignal(
+        ingress.RecordSignal(dep, new HealthSignal(
             DateTimeOffset.UtcNow, dep, SignalOutcome.Success, sw.Elapsed));
 
         return Results.Ok(new { Id = id, Status = "fulfilled" });
     }
     catch (Exception)
     {
-        recorder.Record(new HealthSignal(
+        ingress.RecordSignal(dep, new HealthSignal(
             DateTimeOffset.UtcNow, dep, SignalOutcome.Failure, sw.Elapsed));
 
         return Results.Problem("Order fulfillment failed", statusCode: 503);
@@ -140,7 +127,7 @@ app.MapGet("/status", (HealthBoss.Core.IHealthOrchestrator health) =>
 // Inject signals on demand — use this to simulate failures and watch health degrade
 app.MapPost("/simulate/{component}/{outcome}/{count:int}", (string component, string outcome, int count, HttpContext ctx) =>
 {
-    var orchestrator = ctx.RequestServices.GetRequiredService<HealthBoss.Core.IHealthOrchestrator>();
+    var ingress = ctx.RequestServices.GetRequiredService<ISignalIngress>();
     var dep = new DependencyId(component);
     var signalOutcome = outcome.ToLowerInvariant() switch
     {
@@ -151,7 +138,7 @@ app.MapPost("/simulate/{component}/{outcome}/{count:int}", (string component, st
     };
 
     for (var i = 0; i < count; i++)
-        orchestrator.RecordSignal(dep, new HealthSignal(DateTimeOffset.UtcNow, dep, signalOutcome, TimeSpan.FromMilliseconds(50)));
+        ingress.RecordSignal(dep, new HealthSignal(DateTimeOffset.UtcNow, dep, signalOutcome, TimeSpan.FromMilliseconds(50)));
 
     return Results.Ok(new { Component = component, Outcome = outcome, Count = count });
 }).WithTags("Simulate").WithSummary("Inject signals: /simulate/{component}/{success|failure|timeout}/{count}");
