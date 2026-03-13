@@ -4,68 +4,62 @@ How HealthBoss decides if your dependencies are healthy, degraded, or down.
 
 ## Signal Ingestion
 
-HealthBoss makes decisions based on **health signals** — success/failure events from your dependencies. Signals flow in through three paths:
+HealthBoss makes decisions based on **health signals** — success/failure events from your dependencies. Signals flow in through two paths:
 
-### 1. Automatic: Inbound HTTP Tracking
+### 1. ISignalIngress (primary API)
+
+The main entry point for feeding signals from any source:
 
 ```csharp
-app.UseHealthBossInboundTracking(opts =>
-{
-    opts.Map("/api/orders", "orders-db");
-    opts.Map("/api/payments", "payment-api");
-});
+var ingress = sp.GetRequiredService<ISignalIngress>();
+ingress.RecordSignal(
+    new DependencyId("orders-db"),
+    new HealthSignal(DateTimeOffset.UtcNow, dep, SignalOutcome.Failure, latency));
 ```
 
-Every HTTP request matching a path is recorded as a signal. Status ≥ 500 = failure, otherwise success. No code changes needed in your handlers.
+This is how external systems (like otel-events subscriptions) feed signals into HealthBoss. The orchestrator routes the signal to the correct component's buffer internally.
 
-### 2. Automatic: Outbound HttpClient Tracking
+### 2. ISignalWriter (component-level)
 
-```csharp
-services.AddHttpClient("PaymentApi")
-    .AddHealthBossOutboundTracking(opts => opts.ComponentName = "payment-api");
-```
-
-Every outbound HTTP call through this client is recorded. Response status determines success/failure.
-
-### 3. Automatic: Polly Circuit Breaker
+For code that already knows which component it's recording for (e.g., Polly bridge, gRPC interceptor):
 
 ```csharp
+// Polly circuit breaker integration
 builder.AddCircuitBreaker(options)
-    .WithHealthBossTracking(recorder, dependencyId, clock);
+    .WithHealthBossTracking(signalWriter, dependencyId, clock);
 ```
 
-Polly circuit breaker state changes (Open, Closed, HalfOpen) are recorded as signals.
+### Connecting with otel-events
 
-### 4. Manual: ISignalRecorder / ISignalBuffer
+HealthBoss doesn't track HTTP requests itself — that's [otel-events](https://github.com/vbomfim/otel-events-dotnet)' job. The consumer wires them together via subscriptions:
 
 ```csharp
-app.MapPost("/orders/{id}", (int id, HttpContext ctx) =>
+// otel-events emits events, you subscribe and feed HealthBoss
+builder.Services.AddOtelEventsSubscriptions(subs =>
 {
-    var buffer = ctx.RequestServices.GetRequiredKeyedService<ISignalBuffer>("orders-db");
-    var dep = new DependencyId("orders-db");
-
-    try
+    subs.On("http.request.failed", (ctx, ct) =>
     {
-        var result = await db.ExecuteAsync(...);
-        buffer.Record(new HealthSignal(DateTimeOffset.UtcNow, dep, SignalOutcome.Success, sw.Elapsed));
-    }
-    catch
-    {
-        buffer.Record(new HealthSignal(DateTimeOffset.UtcNow, dep, SignalOutcome.Failure, sw.Elapsed));
-    }
+        var ingress = sp.GetRequiredService<ISignalIngress>();
+        ingress.RecordSignal(
+            new DependencyId("orders-db"),
+            new HealthSignal(ctx.Timestamp, ..., SignalOutcome.Failure));
+        return Task.CompletedTask;
+    });
 });
 ```
-
-For non-HTTP dependencies (databases, queues, gRPC), record signals manually.
 
 ## Signal Flow
 
 ```
-  Inbound HTTP ─────┐
-  Outbound HTTP ────┐│
-  Polly CB ────────┐││
-  Manual Record ──┐│││
-                  ▼▼▼▼
+  otel-events ─────────┐
+  (http.request.failed, │
+   cosmosdb.throttled,  │  Consumer subscribes
+   grpc.call.failed)    │  and calls RecordSignal
+                        ▼
+            ┌──────────────────┐
+            │  ISignalIngress  │  Routes by DependencyId
+            └────────┬─────────┘
+                     ▼
             ┌─────────────┐
             │ SignalBuffer │  Ring buffer per component (10K default)
             │  (per comp.) │
