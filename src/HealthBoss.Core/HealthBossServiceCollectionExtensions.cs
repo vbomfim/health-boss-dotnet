@@ -70,6 +70,15 @@ public static class HealthBossServiceCollectionExtensions
                 new SignalBuffer(sp.GetRequiredService<ISystemClock>()));
         }
 
+        // ISP: register ISignalWriter as an alias so write-only consumers
+        // (gRPC interceptors, Polly hooks, recovery probers) can resolve
+        // the narrow interface without depending on full ISignalBuffer.
+        foreach (var (name, _) in options.Components)
+        {
+            services.AddKeyedSingleton<ISignalWriter>(name, (sp, key) =>
+                sp.GetRequiredKeyedService<ISignalBuffer>(key));
+        }
+
         // Build per-dependency monitors and register the orchestrator
         services.AddSingleton<IHealthOrchestrator>(sp =>
         {

@@ -580,7 +580,7 @@ public sealed class RecoveryProberTests
     /// <summary>
     /// Captures recorded signals for test assertions.
     /// </summary>
-    private sealed class RecordingSignalRecorder : ISignalBuffer
+    private sealed class RecordingSignalRecorder : ISignalWriter
     {
         private readonly List<HealthSignal> _signals = [];
         private readonly object _lock = new();
@@ -601,31 +601,6 @@ public sealed class RecoveryProberTests
             lock (_lock)
             {
                 _signals.Add(signal);
-            }
-        }
-
-        public IReadOnlyList<HealthSignal> GetSignals(TimeSpan window)
-        {
-            lock (_lock)
-            {
-                var cutoff = DateTimeOffset.UtcNow - window;
-                return _signals.Where(s => s.Timestamp >= cutoff).ToList();
-            }
-        }
-
-        public void Trim(DateTimeOffset cutoff)
-        {
-            lock (_lock)
-            {
-                _signals.RemoveAll(s => s.Timestamp < cutoff);
-            }
-        }
-
-        public int Count
-        {
-            get
-            {
-                lock (_lock) { return _signals.Count; }
             }
         }
     }

@@ -1,84 +1,336 @@
-# health.otel.yaml — OtelEvents schema for HealthBoss v1.0
+# ─── HealthBoss OtelEvents Schema ────────────────────────────────────────────
+# Conforms to otel-events v3 schema format.
 # Generate typed helpers: dotnet otel-events generate
-schema_version: 1.0.0
-namespace: HealthBoss.Core.Events
+
+schema:
+  name: "HealthBoss"
+  version: "1.0.0"
+  namespace: "HealthBoss.Core.Events"
+  meterName: "HealthBoss"
+  prefix: HB
+
+enums:
+  HealthState:
+    description: "Dependency health state"
+    values:
+      - Healthy
+      - Degraded
+      - CircuitOpen
+      - Unhealthy
+
+  SignalOutcome:
+    description: "Outcome of a recorded health signal"
+    values:
+      - Success
+      - Failure
+      - Timeout
+      - Rejected
 
 events:
-  # ── Inbound HTTP tracking (replaces InboundHealthMiddleware) ──────
-  - name: InboundRequestCompleted
-    severity: Informational
-    attributes:
-      - id: http.request.method
-        type: string
-        requirement_level: required
-      - id: url.path
-        type: string
-        requirement_level: required
-      - id: http.response.status_code
-        type: int
-        requirement_level: required
-      - id: healthboss.component
-        type: string
-        requirement_level: required
-      - id: healthboss.signal_outcome
-        type: string
-        requirement_level: required
-      - id: healthboss.latency_ms
-        type: double
-        requirement_level: recommended
+  # ── 1xxx — Dependency events ───────────────────────────────────────
 
-  # ── Outbound HTTP tracking (replaces HealthBossDelegatingHandler) ──
-  - name: OutboundRequestCompleted
-    severity: Informational
-    attributes:
-      - id: http.request.method
-        type: string
-        requirement_level: required
-      - id: server.address
-        type: string
-        requirement_level: required
-      - id: http.response.status_code
-        type: int
-        requirement_level: required
-      - id: healthboss.component
-        type: string
-        requirement_level: required
-      - id: healthboss.signal_outcome
-        type: string
-        requirement_level: required
-      - id: healthboss.latency_ms
-        type: double
-        requirement_level: recommended
+  DependencyDegraded:
+    id: 1000
+    severity: WARN
+    message: "Dependency {dependencyId} degraded — success rate {successRate} below threshold {threshold}"
+    fields:
+      - dependencyId
+      - successRate
+      - threshold
+      - signalCount
+    metrics:
+      healthboss.dependency.degraded.count:
+        type: counter
+        unit: "events"
+        description: "Number of times a dependency entered degraded state"
+        labels:
+          - dependencyId
 
-  # ── State transition logging (replaces StructuredLogEventSink) ─────
-  - name: DependencyStateChanged
-    severity: Informational
-    attributes:
-      - id: healthboss.dependency_id
-        type: string
-        requirement_level: required
-      - id: healthboss.previous_state
-        type: string
-        requirement_level: required
-      - id: healthboss.new_state
-        type: string
-        requirement_level: required
+  CircuitOpened:
+    id: 1001
+    severity: ERROR
+    message: "Circuit opened for {dependencyId} after {consecutiveFailures} consecutive failures"
+    fields:
+      - dependencyId
+      - consecutiveFailures
+      - lastOutcome
+    metrics:
+      healthboss.circuit.opened.count:
+        type: counter
+        unit: "events"
+        description: "Number of times a circuit breaker opened"
+        labels:
+          - dependencyId
 
-  - name: TenantHealthChanged
-    severity: Warning
-    attributes:
-      - id: healthboss.dependency_id
-        type: string
-        requirement_level: required
-      - id: healthboss.tenant_id
-        type: string
-        requirement_level: required
-      - id: healthboss.previous_status
-        type: string
-        requirement_level: required
-      - id: healthboss.new_status
-        type: string
-        requirement_level: required
-      - id: healthboss.success_rate
-        type: double
-        requirement_level: recommended
+  CircuitRecovered:
+    id: 1002
+    severity: INFO
+    message: "Circuit recovered for {dependencyId} — back to healthy"
+    fields:
+      - dependencyId
+      - recoveryDurationMs
+    metrics:
+      healthboss.circuit.recovered.count:
+        type: counter
+        unit: "events"
+        description: "Number of times a circuit breaker recovered"
+        labels:
+          - dependencyId
+      healthboss.circuit.recovery.duration:
+        type: histogram
+        unit: "ms"
+        description: "Time spent in circuit-open state before recovery"
+        labels:
+          - dependencyId
+
+  RecoveryProbeSucceeded:
+    id: 1003
+    severity: INFO
+    message: "Recovery probe succeeded for {dependencyId}"
+    fields:
+      - dependencyId
+      - probeDurationMs
+    metrics:
+      healthboss.recovery.probe.success.count:
+        type: counter
+        unit: "probes"
+        description: "Successful recovery probes"
+        labels:
+          - dependencyId
+      healthboss.recovery.probe.duration:
+        type: histogram
+        unit: "ms"
+        description: "Recovery probe latency"
+        buckets: [5, 10, 25, 50, 100, 250, 500, 1000]
+        labels:
+          - dependencyId
+
+  RecoveryProbeFailed:
+    id: 1004
+    severity: WARN
+    message: "Recovery probe failed for {dependencyId}: {reason}"
+    fields:
+      - dependencyId
+      - reason
+      - probeDurationMs
+    metrics:
+      healthboss.recovery.probe.failed.count:
+        type: counter
+        unit: "probes"
+        description: "Failed recovery probes"
+        labels:
+          - dependencyId
+
+  SignalRecorded:
+    id: 1005
+    severity: TRACE
+    message: "Signal recorded for {dependencyId}: {outcome} in {latencyMs}ms"
+    fields:
+      - dependencyId
+      - outcome
+      - latencyMs: { optional: true }
+      - httpStatusCode: { optional: true }
+      - grpcStatus: { optional: true }
+    metrics:
+      healthboss.signal.recorded.count:
+        type: counter
+        unit: "signals"
+        description: "Total health signals recorded"
+        labels:
+          - dependencyId
+          - outcome
+      healthboss.signal.latency:
+        type: histogram
+        unit: "ms"
+        description: "Signal operation latency"
+        buckets: [1, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000]
+        labels:
+          - dependencyId
+
+  # ── 2xxx — Pod lifecycle events ────────────────────────────────────
+
+  PodReady:
+    id: 2000
+    severity: INFO
+    message: "Pod ready — startup completed in {startupDurationMs}ms"
+    fields:
+      - podName: { optional: true }
+      - startupDurationMs
+    metrics:
+      healthboss.pod.startup.duration:
+        type: histogram
+        unit: "ms"
+        description: "Pod startup duration"
+        buckets: [100, 500, 1000, 2500, 5000, 10000, 30000]
+
+  PodStartupFailed:
+    id: 2001
+    severity: FATAL
+    message: "Pod startup failed: {reason}"
+    exception: true
+    fields:
+      - podName: { optional: true }
+      - reason
+    metrics:
+      healthboss.pod.startup.failed.count:
+        type: counter
+        unit: "events"
+        description: "Pod startup failures"
+
+  PodNotReady:
+    id: 2002
+    severity: WARN
+    message: "Pod not ready — {unhealthyCount} dependencies unhealthy"
+    fields:
+      - podName: { optional: true }
+      - unhealthyCount
+      - degradedCount
+    metrics:
+      healthboss.pod.notready.count:
+        type: counter
+        unit: "events"
+        description: "Pod not-ready transitions"
+
+  PodUnhealthy:
+    id: 2003
+    severity: ERROR
+    message: "Pod unhealthy — aggregate state {aggregateState}"
+    fields:
+      - podName: { optional: true }
+      - aggregateState
+      - unhealthyDependencies
+    metrics:
+      healthboss.pod.unhealthy.count:
+        type: counter
+        unit: "events"
+        description: "Pod unhealthy transitions"
+
+  ShutdownSignalReceived:
+    id: 2004
+    severity: WARN
+    message: "Shutdown signal received — beginning graceful shutdown"
+    fields:
+      - podName: { optional: true }
+      - activeSessions
+    metrics:
+      healthboss.pod.shutdown.count:
+        type: counter
+        unit: "events"
+        description: "Shutdown signals received"
+
+  # ── 3xxx — Drain events ────────────────────────────────────────────
+
+  DrainStarted:
+    id: 3000
+    severity: INFO
+    message: "Drain started — {activeSessions} active sessions, timeout {drainTimeoutSeconds}s"
+    fields:
+      - activeSessions
+      - drainTimeoutSeconds
+    metrics:
+      healthboss.drain.started.count:
+        type: counter
+        unit: "events"
+        description: "Drain operations started"
+
+  DrainCompleted:
+    id: 3001
+    severity: INFO
+    message: "Drain completed — all sessions drained in {drainDurationMs}ms"
+    fields:
+      - drainDurationMs
+      - sessionsCompleted
+    metrics:
+      healthboss.drain.completed.count:
+        type: counter
+        unit: "events"
+        description: "Drain operations completed successfully"
+      healthboss.drain.duration:
+        type: histogram
+        unit: "ms"
+        description: "Drain duration"
+        buckets: [100, 500, 1000, 2500, 5000, 10000, 30000, 60000]
+
+  DrainTimedOut:
+    id: 3002
+    severity: ERROR
+    message: "Drain timed out after {drainTimeoutSeconds}s — {remainingSessions} sessions abandoned"
+    fields:
+      - drainTimeoutSeconds
+      - remainingSessions
+    metrics:
+      healthboss.drain.timedout.count:
+        type: counter
+        unit: "events"
+        description: "Drain operations that timed out"
+
+  # ── 4xxx — Tenant events ───────────────────────────────────────────
+
+  TenantDegraded:
+    id: 4000
+    severity: WARN
+    message: "Tenant {tenantId} degraded on {dependencyId} — success rate {successRate}"
+    fields:
+      - tenantId: { sensitivity: pii }
+      - dependencyId
+      - successRate
+      - signalCount
+    metrics:
+      healthboss.tenant.degraded.count:
+        type: counter
+        unit: "events"
+        description: "Tenant degradation events"
+        labels:
+          - dependencyId
+
+  TenantUnavailable:
+    id: 4001
+    severity: ERROR
+    message: "Tenant {tenantId} unavailable on {dependencyId}"
+    fields:
+      - tenantId: { sensitivity: pii }
+      - dependencyId
+      - successRate
+      - consecutiveFailures
+    metrics:
+      healthboss.tenant.unavailable.count:
+        type: counter
+        unit: "events"
+        description: "Tenant unavailable events"
+        labels:
+          - dependencyId
+
+  TenantRecovered:
+    id: 4002
+    severity: INFO
+    message: "Tenant {tenantId} recovered on {dependencyId}"
+    fields:
+      - tenantId: { sensitivity: pii }
+      - dependencyId
+      - recoveryDurationMs
+    metrics:
+      healthboss.tenant.recovered.count:
+        type: counter
+        unit: "events"
+        description: "Tenant recovery events"
+        labels:
+          - dependencyId
+
+  # ── 5xxx — Capacity events ─────────────────────────────────────────
+
+  TenantCapacityReached:
+    id: 5000
+    severity: WARN
+    message: "Capacity reached for tenant {tenantId} on {dependencyId} — {currentLoad}/{maxCapacity}"
+    fields:
+      - tenantId: { sensitivity: pii }
+      - dependencyId
+      - currentLoad
+      - maxCapacity
+    metrics:
+      healthboss.tenant.capacity.reached.count:
+        type: counter
+        unit: "events"
+        description: "Tenant capacity limit events"
+        labels:
+          - dependencyId

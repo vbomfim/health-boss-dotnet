@@ -26,20 +26,20 @@ namespace HealthBoss.Grpc;
 /// </para>
 /// <para>
 /// This class is thread-safe. Signal recording is delegated to the
-/// <see cref="ISignalBuffer"/> which guarantees O(1) lock-free writes.
+/// <see cref="ISignalWriter"/> which guarantees O(1) lock-free writes.
 /// </para>
 /// </remarks>
 // TODO: Sprint 6+ — add client-streaming, server-streaming, and duplex interceptors
 public sealed class GrpcClientHealthInterceptor : Interceptor
 {
-    private readonly ISignalBuffer _recorder;
+    private readonly ISignalWriter _recorder;
     private readonly ISystemClock _clock;
     private readonly DependencyId _dependencyId;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="GrpcClientHealthInterceptor"/> class.
     /// </summary>
-    /// <param name="recorder">The signal buffer to write health signals to.</param>
+    /// <param name="recorder">The signal writer to record health signals to.</param>
     /// <param name="clock">Clock used for timestamps and latency measurement.</param>
     /// <param name="componentName">The logical component name for the gRPC backend pool
     /// (e.g., "grpc_backend_pool"). Must be a valid dependency identifier.</param>
@@ -50,7 +50,7 @@ public sealed class GrpcClientHealthInterceptor : Interceptor
     /// Thrown when <paramref name="componentName"/> is not a valid dependency identifier.
     /// </exception>
     public GrpcClientHealthInterceptor(
-        ISignalBuffer recorder,
+        ISignalWriter recorder,
         ISystemClock clock,
         string componentName)
     {
