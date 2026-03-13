@@ -19,8 +19,4 @@
     <InternalsVisibleTo Include="HealthBoss.Core.Tests" />
   </ItemGroup>
 
-  <ItemGroup>
-    <None Include="health.otel.yaml" Pack="true" PackagePath="content/" />
-  </ItemGroup>
-
 </Project>
