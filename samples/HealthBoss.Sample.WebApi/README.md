@@ -60,7 +60,11 @@ curl http://localhost:5100/status   # Back to Healthy
 
 | Feature | Where |
 |---------|-------|
-| Component registration with thresholds | `AddHealthBoss()` in Program.cs |
+| HealthBoss component registration | `AddHealthBoss()` in Program.cs |
+| otel-events HTTP event tracking | `AddOtelEventsAspNetCore()` — auto-emits `http.request.*` events |
+| otel-events JSON exporter | `AddOtelEventsJsonExporter()` — JSONL to stdout |
+| otel-events causal linking | `AddOtelEventsCausalityProcessor()` — event chains |
+| otel-events subscriptions | `AddOtelEventsSubscriptions()` — react to events in-process |
 | Manual signal recording | `POST /orders/{id}/fulfill` via `ISignalRecorder` |
 | Signal injection for testing | `POST /simulate/{component}/{outcome}/{count}` |
 | Programmatic health reading | `GET /status` via `IHealthOrchestrator` |

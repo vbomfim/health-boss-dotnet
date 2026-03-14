@@ -1,6 +1,10 @@
 using HealthBoss.AspNetCore;
 using HealthBoss.Core;
 using HealthBoss.Core.Contracts;
+using OtelEvents.AspNetCore;
+using OtelEvents.Causality;
+using OtelEvents.Exporter.Json;
+using OtelEvents.Subscriptions;
 using OpenTelemetry.Metrics;
 using Scalar.AspNetCore;
 
@@ -13,7 +17,6 @@ builder.Services.AddOpenApi();
 // ──────────────────────────────────────────────────────────────
 builder.Services.AddHealthBoss(opts =>
 {
-    // A database with tight latency requirements
     opts.AddComponent("orders-db", c => c
         .Window(TimeSpan.FromMinutes(5))
         .HealthyAbove(0.95)
@@ -23,35 +26,55 @@ builder.Services.AddHealthBoss(opts =>
             .Percentile(0.95)
             .DegradedAfter(TimeSpan.FromMilliseconds(200))));
 
-    // An external payment API — more tolerant thresholds
     opts.AddComponent("payment-api", c => c
         .Window(TimeSpan.FromMinutes(10))
         .HealthyAbove(0.8)
         .DegradedAbove(0.5)
         .MinimumSignals(5));
 
-    // A cache — optional, so we tolerate more failures
     opts.AddComponent("redis-cache", c => c
         .HealthyAbove(0.7)
         .DegradedAbove(0.3));
 });
 
 // ──────────────────────────────────────────────────────────────
-// 2. Register outbound HTTP clients
-//    Signal recording is done manually or via otel-events (coming soon).
+// 2. Register otel-events — structured event logging
+// ──────────────────────────────────────────────────────────────
+builder.Services.AddOpenTelemetry()
+    .WithLogging(logging =>
+    {
+        logging.AddOtelEventsJsonExporter();                    // JSONL to stdout
+        logging.AddOtelEventsCausalityProcessor();              // Causal linking
+    })
+    .WithMetrics(m => m
+        .AddMeter("HealthBoss")
+        .AddConsoleExporter());
+
+builder.Services.AddOtelEventsAspNetCore();   // Auto-emit HTTP events
+
+// ──────────────────────────────────────────────────────────────
+// 3. Wire otel-events → HealthBoss via subscriptions
+//    otel-events emits events, we subscribe and feed signals
+// ──────────────────────────────────────────────────────────────
+builder.Services.AddOtelEventsSubscriptions(subs =>
+{
+    // HTTP failures → HealthBoss signal
+    subs.On("http.request.failed", (ctx, ct) =>
+    {
+        // Note: subscription handlers don't have DI access.
+        // For production, resolve ISignalRecorder from a captured IServiceProvider.
+        // This sample uses /simulate for signal injection instead.
+        return Task.CompletedTask;
+    });
+});
+
+// ──────────────────────────────────────────────────────────────
+// 4. Register outbound HTTP clients
 // ──────────────────────────────────────────────────────────────
 builder.Services.AddHttpClient("PaymentApi", client =>
 {
     client.BaseAddress = new Uri("https://api.payments.example.com");
 });
-
-// ──────────────────────────────────────────────────────────────
-// 3. Wire OpenTelemetry to export HealthBoss metrics
-// ──────────────────────────────────────────────────────────────
-builder.Services.AddOpenTelemetry()
-    .WithMetrics(m => m
-        .AddMeter("HealthBoss")
-        .AddConsoleExporter());
 
 var app = builder.Build();
 
@@ -59,7 +82,7 @@ app.MapOpenApi();
 app.MapScalarApiReference();
 
 // ──────────────────────────────────────────────────────────────
-// 4. Map Kubernetes probe endpoints
+// 5. Map Kubernetes probe endpoints
 // ──────────────────────────────────────────────────────────────
 app.MapHealthBossEndpoints(opts =>
 {
@@ -67,7 +90,7 @@ app.MapHealthBossEndpoints(opts =>
 });
 
 // ──────────────────────────────────────────────────────────────
-// 5. Application endpoints
+// 6. Application endpoints
 // ──────────────────────────────────────────────────────────────
 
 var nextOrderId = 0;
@@ -75,10 +98,9 @@ app.MapPost("/orders", () =>
 {
     var id = Interlocked.Increment(ref nextOrderId);
     return Results.Created($"/orders/{id}", new { Id = id, Status = "created" });
-}).WithTags("Orders").WithSummary("Place an order");
+}).WithTags("Orders").WithSummary("Place an order (otel-events tracks the HTTP request automatically)");
 
-// Manual signal recording via ISignalRecorder — the recommended way
-// to record signals for any dependency without knowing internal buffer topology.
+// Manual signal recording — for non-HTTP dependencies
 app.MapPost("/orders/{id}/fulfill", (int id, HttpContext ctx) =>
 {
     var recorder = ctx.RequestServices.GetRequiredService<ISignalRecorder>();
@@ -87,7 +109,6 @@ app.MapPost("/orders/{id}/fulfill", (int id, HttpContext ctx) =>
 
     try
     {
-        // Simulate a database write
         if (Random.Shared.NextDouble() < 0.1)
             throw new TimeoutException("DB timeout");
 
@@ -103,7 +124,7 @@ app.MapPost("/orders/{id}/fulfill", (int id, HttpContext ctx) =>
 
         return Results.Problem("Order fulfillment failed", statusCode: 503);
     }
-}).WithTags("Orders").WithSummary("Fulfill an order (~10% simulated failure, manual signal recording)");
+}).WithTags("Orders").WithSummary("Fulfill an order (~10% simulated failure)");
 
 // Read health programmatically
 app.MapGet("/status", (HealthBoss.Core.IHealthOrchestrator health) =>
@@ -122,9 +143,9 @@ app.MapGet("/status", (HealthBoss.Core.IHealthOrchestrator health) =>
             RecommendedState = d.LatestAssessment.RecommendedState.ToString(),
         }),
     });
-}).WithTags("Health").WithSummary("Programmatic health report (IHealthReportProvider)");
+}).WithTags("Health").WithSummary("Programmatic health report");
 
-// Inject signals on demand — use this to simulate failures and watch health degrade
+// Inject signals on demand for testing state transitions
 app.MapPost("/simulate/{component}/{outcome}/{count:int}", (string component, string outcome, int count, HttpContext ctx) =>
 {
     var recorder = ctx.RequestServices.GetRequiredService<ISignalRecorder>();
@@ -143,7 +164,7 @@ app.MapPost("/simulate/{component}/{outcome}/{count:int}", (string component, st
     return Results.Ok(new { Component = component, Outcome = outcome, Count = count });
 }).WithTags("Simulate").WithSummary("Inject signals: /simulate/{component}/{success|failure|timeout}/{count}");
 
-// Mark startup complete once initialization is done
+// Mark startup complete
 var startup = app.Services.GetRequiredService<HealthBoss.Core.IStartupTracker>();
 startup.MarkReady();
 
